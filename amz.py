@@ -107,7 +107,7 @@ def parse(ever_page_html):
 
 #评论入库
 def my_db(data):
-    sql = 'INSERT INTO amz_review (sid, asin, review_id, last_star, last_title,last_content,review_md5,author_id,author,review_date,is_vp,status,update_time,create_time,crawl_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
+    sql = 'INSERT INTO amz_review_copy (sid, asin, review_id, last_star, last_title,last_content,review_md5,author_id,author,review_date,is_vp,status,update_time,create_time,crawl_date,current_format) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
     try:
         cursor.execute(sql, data)
         conn.commit()
@@ -126,7 +126,7 @@ def deal_data(html,asin,sid):
         data = [sid, asin, soup_result["review_id"], soup_result["last_star"], soup_result["last_title"],
                 soup_result["last_content"], md5(soup_result["last_title"] + soup_result["last_content"]),
                 soup_result["author_id"], soup_result["author"], soup_result["review_date"], soup_result["is_vp"], 0,
-                int(time.time()), int(time.time()), now]
+                int(time.time()), int(time.time()), now,soup_result["current_format"]]
         my_db(data)
         # soup_result = parse(ever_page_html=ever_page_html[0])
         # result_list.append([sid, asin, soup_result["review_id"], soup_result["last_star"], soup_result["last_title"], soup_result["last_content"], md5(soup_result["last_title"] + soup_result["last_content"]), soup_result["author_id"], soup_result["author"], soup_result["review_date"], soup_result["is_vp"], 0, int(time.time()), int(time.time()), now])
@@ -145,7 +145,7 @@ def main(asin,sid):
         start_res = my_get(start_url)
         if start_res.status_code == 404:
             now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-            data = [sid, asin, "", "", "", "","","","","", "",0, int(time.time()), int(time.time()), now]
+            data = [sid, asin, "", "", "", "","","","","", "",0, int(time.time()), int(time.time()), now,""]
             my_db(data)
             return
         elif start_res.status_code != 200:
