@@ -39,14 +39,32 @@ s = my_session()
 # proxies = {"http":"http://"+proxy}
 # print(proxies)
 #s.proxies.update(proxy)
+def update_table():
+    now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+    cursor.execute("select DISTINCT sid,asin1 from mws_product_online ")
+    conn.commit()
+    results = cursor.fetchall()
+    for sid, asin in results:
+        try:
+            cursor.execute(
+                "insert into amz_review_task(sid,asin,update_time,creat_time,update_localtime,creat_localtim) values('{}','{}',{},{},'{}','{}')".format(
+                    sid, asin, "0", int(time.time()), "0", now))
+        except Exception as e :
+            print(e)
+    conn.commit()
+def update_time(sid,asin):
+    now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+    cursor.execute("UPDATE amz_review_task set update_time = '{}',update_localtime='{}' where sid='{}' and asin='{}'".format(int(time.time()),now,sid,asin))
+    conn.commit()
+    print("更新数据成功")
 def md5(data):
     data = bytes(data,encoding = "utf8")
     m2 = hashlib.md5()
     m2.update(data)
     return m2.hexdigest()
-
-def get_asin_sid():
-    cursor.execute("select distinct asin1,sid from mws_product_online")
+#deley 为设置与上次爬取的时间间隔，单位为小时
+def get_asin_sid(delay=5):
+    cursor.execute("select asin,sid from amz_review_task where update_time = 0 or {} -update_time >{}".format(int(time.time()),delay*60*60))
     results = cursor.fetchall()
     conn.commit()
     return results
@@ -142,11 +160,13 @@ def main(asin,sid):
     response_list = []
     start_url = 'https://www.amazon.com/product-reviews/{}?reviewerType=all_reviews&sortBy=recent'.format(asin)
     while 1:
-        start_res = my_get(start_url)
+        try:
+            start_res = my_get(start_url)
+        except:
+            continue
         if start_res.status_code == 404:
-            now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-            data = [sid, asin, "", "", "", "","","","","", "",0, int(time.time()), int(time.time()), now,""]
-            my_db(data)
+            cursor.execute("DELETE from amz_review_task where asin = '{}' and sid = {}".format(asin,sid))
+            conn.commit()
             return
         elif start_res.status_code != 200:
             continue
@@ -157,8 +177,6 @@ def main(asin,sid):
             #print(start_res.text)
             pass
     print("共",review_num//50+2,"页")
-
-
     if review_num == 1 :
         main_handler(review_num,asin,sid,response_list)
     else:
@@ -178,10 +196,12 @@ def main(asin,sid):
         # soup_result = parse(ever_page_html=respon[0])
         # data = [sid, asin, soup_result["review_id"], soup_result["last_star"], soup_result["last_title"], soup_result["last_content"], md5(soup_result["last_title"] + soup_result["last_content"]), soup_result["author_id"], soup_result["author"], soup_result["review_date"], soup_result["is_vp"], 0, int(time.time()), int(time.time()), now]
         # my_db(data)
-
+    update_time(sid, asin)#更新表中数据
 
 if __name__ == '__main__':
-    asins_sids = get_asin_sid()
+    update_table()#更新一下数据库
+    asins_sids = get_asin_sid(delay=5)
     for asin,sid in asins_sids:
         main(asin,sid)
-    #main("B01D4FP6MY",1)
+    # # #main("B01D4FP6MY",1)
+
