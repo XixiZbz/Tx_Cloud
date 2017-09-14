@@ -10,7 +10,6 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from util import USER_AGENTS,mysql_config,my_app_key,app_secret,mayi_url,mayi_port
-from multiprocessing.dummy import Pool
 import random
 timesp = '{}'.format(time.strftime("%Y-%m-%d %H:%M:%S"))
 codes = app_secret + 'app_key' + my_app_key + 'timestamp' + timesp + app_secret
@@ -99,14 +98,15 @@ async def my_get(input_data, proxies=None):
 
 
 
-async def fetch(url, data,proxies,headers,response_dict,sid,asin):
+async def fetch(url, data,proxies,headers,response_list,sid,asin,page):
     headers.update({"User-Agent":random.choice(USER_AGENTS)})
     with (await sema):
         conn = aiohttp.TCPConnector(verify_ssl=False)
         async with aiohttp.ClientSession(connector=conn) as s:
             async with s.request(url=url, data=data,method="POST",headers=headers,proxy=proxies,timeout=100) as r:
                 r = await r.text()
-                response_dict.append((asin,sid,r))
+                response_list.append((asin,sid,r))
+                print(sid,"  ",asin,"   ",page,"  done")
 #解析出总评论数
 def rev_num(html):
     soup = BeautifulSoup(html, "html.parser")
@@ -157,41 +157,34 @@ def deal_data(html,asin,sid):
                 soup_result["last_content"], md5(soup_result["last_title"] + soup_result["last_content"]),
                 soup_result["author_id"], soup_result["author"], soup_result["review_date"], soup_result["is_vp"], 0,
                 int(time.time()), int(time.time()), now,soup_result["current_format"]]
+        print(data)
         my_db(data)
-        # soup_result = parse(ever_page_html=ever_page_html[0])
-        # result_list.append([sid, asin, soup_result["review_id"], soup_result["last_star"], soup_result["last_title"], soup_result["last_content"], md5(soup_result["last_title"] + soup_result["last_content"]), soup_result["author_id"], soup_result["author"], soup_result["review_date"], soup_result["is_vp"], 0, int(time.time()), int(time.time()), now])
-
 # 并发处理
 def main(asins_sids,proxy,headers):
     task_pre=[]
     tasks= []
     results = []
+    response_list = []
     for asin,sid in asins_sids:
         start_url = 'https://www.amazon.com/product-reviews/{}?reviewerType=all_reviews&sortBy=recent'.format(asin)
         tasks.append((start_url,asin,sid,results))
-
     event_loop = asyncio.get_event_loop()
-    f = asyncio.wait([my_get(input_data=task, proxies=proxy) for task in tasks[0:2]])
+    f = asyncio.wait([my_get(input_data=task, proxies=proxy) for task in tasks])
     event_loop.run_until_complete(f)
-    print(results)
-    url = 'https://www.amazon.com/ss/customer-reviews/ajax/reviews/get/ref=cm_cr_getr_d_paging_btm_next_5'
-    data = "sortBy=recent&reviewerType=all_reviews&formatType=current_format&filterByStar=&pageNumber={}&filterByKeyword=&shouldAppend=undefined&deviceType=desktop&reftag=cm_cr_arp_d_paging_btm_2&pageSize=50&asin={}&scope=reviewsAjax0"
-    response_list = []
     for eve_result in results:
         asin,sid,page = eve_result
-        for page_num in range(page):
+        for page_num in range(1,page//50+2):
             task_pre.append((asin,sid,page_num))
-
-    event_loop = asyncio.get_event_loop()
-    f = asyncio.wait([fetch(url=url, data=data.format(asin, page), proxies=proxy, headers=headers, response_dict=response_list, sid=sid, asin=asin) for asin,sid,page in task_pre])
+    print(task_pre)
+    url = 'https://www.amazon.com/ss/customer-reviews/ajax/reviews/get/ref=cm_cr_getr_d_paging_btm_next_5'
+    data = "sortBy=recent&reviewerType=all_reviews&formatType=current_format&filterByStar=&pageNumber={}&filterByKeyword=&shouldAppend=undefined&deviceType=desktop&reftag=cm_cr_arp_d_paging_btm_2&pageSize=50&asin={}&scope=reviewsAjax0"
+    f = asyncio.wait([fetch(url=url, data=data.format(page, asin), proxies=proxy, headers=headers, response_list=response_list, sid=sid, asin=asin,page=page) for asin,sid,page in task_pre])
     event_loop.run_until_complete(f)
+    print('fuck')
     for asin,sid,respon in response_list:
         deal_data(respon,asin,sid)
     # # #update_time(sid, asin)#更新表中数据
-
 if __name__ == '__main__':
     #update_table()#更新一下数据库
-    asins_sids = get_asin_sid(delay=0.5)
+    asins_sids = get_asin_sid(delay=0.0)
     main(asins_sids,proxy,headers)
-    # # #main("B01D4FP6MY",1)
-

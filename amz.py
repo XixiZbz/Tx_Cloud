@@ -8,18 +8,6 @@ from bs4 import BeautifulSoup
 from multiprocessing.dummy import Pool
 from util import my_session,USER_AGENTS,mysql_config
 import random
-# headers_list = {
-#     "Host":"www.amazon.com",
-#     "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36",
-#     "Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-#     "Accept-Encoding":"",
-#     "Origin":"https://www.amazon.com",
-#     "X-Requested-With":"XMLHttpRequest",
-#     "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8",
-#     "Connection":"keep-alive",
-#     "Referer":"https://www.amazon.com/AmazonBasics-Velvet-Hangers-50-Pack-Black/product-reviews/B01BH83OOM/ref=cm_cr_getr_d_paging_btm_1?ie=UTF8&reviewerType=all_reviews&pageNumber=1&sortBy=recent",
-#            }
-
 conn = pymysql.connect(**mysql_config)
 cursor = conn.cursor()
 s = my_session()
@@ -135,10 +123,9 @@ def deal_data(html,asin,sid):
 def main_handler(each_rev,asin,sid,response_list):
     print("当前页：", each_rev)
     res = get_xhr(each_rev, asin)
-    #get_xhr_parse(res.text,asin,sid,response_list)
     response_list.append(res)
     print("完成页：",each_rev)
-# 多线程 处理
+# 多进程 处理
 def main(asin,sid):
     print(asin ,sid)
     response_list = []
@@ -157,19 +144,15 @@ def main(asin,sid):
         try:
             review_num = rev_num(start_res.text)
             break
-
-
         except:
-            #print(start_res.text)
             pass
-    print("共",review_num//50+2,"页")
+    print("共",review_num//50+1,"页")
     if review_num == 1 :
         main_handler(review_num,asin,sid,response_list)
     else:
         tasks = [(x,asin,sid,response_list)for x in range(1,review_num // 50 + 2)]
         thread_num = len(tasks) if len(tasks)<30 else 30
         pool = Pool(thread_num)
-        #tasks = [(x, asin) for x in range(1,20)]
         pool.starmap(main_handler, tasks)
         pool.close()
         pool.join()
@@ -178,10 +161,6 @@ def main(asin,sid):
 
     for respon in response_list:
         deal_data(respon.text,asin,sid)
-        # now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-        # soup_result = parse(ever_page_html=respon[0])
-        # data = [sid, asin, soup_result["review_id"], soup_result["last_star"], soup_result["last_title"], soup_result["last_content"], md5(soup_result["last_title"] + soup_result["last_content"]), soup_result["author_id"], soup_result["author"], soup_result["review_date"], soup_result["is_vp"], 0, int(time.time()), int(time.time()), now]
-        # my_db(data)
     update_time(sid, asin)#更新表中数据
 
 if __name__ == '__main__':
