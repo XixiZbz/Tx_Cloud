@@ -173,6 +173,8 @@ def main(asin,sid):
         try:
             review_num = rev_num(start_res.text)
             break
+
+
         except:
             #print(start_res.text)
             pass
