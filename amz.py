@@ -6,17 +6,8 @@ import pymysql
 import time
 from bs4 import BeautifulSoup
 from multiprocessing.dummy import Pool
-from util import my_session,USER_AGENTS
+from util import my_session,USER_AGENTS,mysql_config
 import random
-mysql_config = {
-    "host":"59ae085c00753.gz.cdb.myqcloud.com",
-    "user":"root",
-    "password":"%yms%2017",
-    "db":"yms_erp_dev",
-    #"db":"yms_test",
-    "charset":"utf8mb4",
-    "port":5902,
-}
 # headers_list = {
 #     "Host":"www.amazon.com",
 #     "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36",
