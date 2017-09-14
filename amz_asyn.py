@@ -9,14 +9,9 @@ import pymysql
 import time
 import requests
 from bs4 import BeautifulSoup
-from util import USER_AGENTS
+from util import USER_AGENTS,mysql_config,my_app_key,app_secret,mayi_url,mayi_port
 from multiprocessing.dummy import Pool
 import random
-my_app_key = "93137265"
-app_secret = "225d0a2e1fc62ed275f487fc9c823693"
-mayi_url = 's2.proxy.mayidaili.com'
-mayi_port = '8123'
-
 timesp = '{}'.format(time.strftime("%Y-%m-%d %H:%M:%S"))
 codes = app_secret + 'app_key' + my_app_key + 'timestamp' + timesp + app_secret
 sign = hashlib.md5(codes.encode('utf-8')).hexdigest().upper()
@@ -34,15 +29,6 @@ headers = {
     "Connection": "keep-alive",
     'Proxy-Authorization': authHeader,
     # "Referer":"https://www.amazon.com/AmazonBasics-Velvet-Hangers-50-Pack-Black/product-reviews/B01BH83OOM/ref=cm_cr_getr_d_paging_btm_1?ie=UTF8&reviewerType=all_reviews&pageNumber=1&sortBy=recent",
-}
-mysql_config = {
-    "host":"59ae085c00753.gz.cdb.myqcloud.com",
-    "user":"root",
-    "password":"%yms%2017",
-    "db":"yms_erp_dev",
-    #"db":"yms_test",
-    "charset":"utf8mb4",
-    "port":5902,
 }
 sema = asyncio.Semaphore(5)
 conn = pymysql.connect(**mysql_config)
