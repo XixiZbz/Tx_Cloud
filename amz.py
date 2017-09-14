@@ -23,13 +23,6 @@ import random
 conn = pymysql.connect(**mysql_config)
 cursor = conn.cursor()
 s = my_session()
-#result_list = []
-
-# s = requests.Session()
-# proxy = requests.get('http://123.207.17.216:5000', auth=('admin', 'yms_amz')).text
-# proxies = {"http":"http://"+proxy}
-# print(proxies)
-#s.proxies.update(proxy)
 def update_table():
     now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
     cursor.execute("select DISTINCT sid,asin1 from mws_product_online ")
