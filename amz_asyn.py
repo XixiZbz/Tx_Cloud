@@ -9,14 +9,8 @@ import pymysql
 import time
 import requests
 from bs4 import BeautifulSoup
-from util import USER_AGENTS,mysql_config,my_app_key,app_secret,mayi_url,mayi_port
+from util import USER_AGENTS,mysql_config
 import random
-timesp = '{}'.format(time.strftime("%Y-%m-%d %H:%M:%S"))
-codes = app_secret + 'app_key' + my_app_key + 'timestamp' + timesp + app_secret
-sign = hashlib.md5(codes.encode('utf-8')).hexdigest().upper()
-
-# 拼接一个用来获得蚂蚁代理服务器的「准入」的 header (Python 的 concatenate '+' 比 join 效率高)
-authHeader = 'MYH-AUTH-MD5 sign=' + sign + '&app_key=' + my_app_key + '&timestamp=' + timesp
 headers = {
     "Host": "www.amazon.com",
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36",
@@ -26,14 +20,15 @@ headers = {
     "X-Requested-With": "XMLHttpRequest",
     "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
     "Connection": "keep-alive",
-    'Proxy-Authorization': authHeader,
     # "Referer":"https://www.amazon.com/AmazonBasics-Velvet-Hangers-50-Pack-Black/product-reviews/B01BH83OOM/ref=cm_cr_getr_d_paging_btm_1?ie=UTF8&reviewerType=all_reviews&pageNumber=1&sortBy=recent",
 }
-sema = asyncio.Semaphore(5)
+sema = asyncio.Semaphore(10)
 conn = pymysql.connect(**mysql_config)
 cursor = conn.cursor()
-# proxy = requests.get('http://123.207.17.216:5000', auth=('admin', 'yms_amz')).text
-proxy = 'http://{}:{}'.format(mayi_url, mayi_port)
+def get_proxy():
+    proxies = requests.get('http://123.207.17.216:5000', auth=('admin', 'qgy')).text
+    proxy = 'http://{}'.format(proxies)
+    return proxy
 def update_table():
     now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
     cursor.execute("select DISTINCT sid,asin1 from mws_product_online ")

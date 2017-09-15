@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 from multiprocessing.dummy import Pool
 from util import my_session,USER_AGENTS,mysql_config
 import random
+from collections import ChainMap
 conn = pymysql.connect(**mysql_config)
 cursor = conn.cursor()
 s = my_session()
@@ -97,9 +98,14 @@ def parse(ever_page_html):
 
 #评论入库
 def my_db(data):
-    sql = 'INSERT INTO amz_review_copy (sid, asin, review_id, last_star, last_title,last_content,review_md5,author_id,author,review_date,is_vp,status,update_time,create_time,crawl_date,current_format) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
+    sql = 'INSERT INTO amz_review (sid, asin, review_id, last_star, last_title,last_content,review_md5,author_id,author,review_date,is_vp,status,update_time,create_time,crawl_date,current_format) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
+    sql_item = 'INSERT INTO amz_review_item (rid,star,title,content,review_date,create_time,md5) VALUES (%s, %s, %s, %s, %s, %s, %s)'
     try:
         cursor.execute(sql, data)
+        cursor.execute("select max(id) from amz_review")
+        auto_id = cursor.fetchall()
+        item_data =[auto_id[0][0],data[3],data[4],data[5],data[9],int(time.time()),data[6]]
+        cursor.execute(sql_item, item_data)
         conn.commit()
     except Exception as e :
         print(e)
@@ -114,10 +120,11 @@ def deal_data(html,asin,sid):
         ever_page_html = json.loads(x)[2:]
         soup_result = parse(ever_page_html=ever_page_html[0])
         data = [sid, asin, soup_result["review_id"], soup_result["last_star"], soup_result["last_title"],
-                soup_result["last_content"], md5(soup_result["last_title"] + soup_result["last_content"]),
+                soup_result["last_content"], md5(soup_result["last_star"]+soup_result["last_title"] + soup_result["last_content"]),
                 soup_result["author_id"], soup_result["author"], soup_result["review_date"], soup_result["is_vp"], 0,
                 int(time.time()), int(time.time()), now,soup_result["current_format"]]
         my_db(data)
+
         # soup_result = parse(ever_page_html=ever_page_html[0])
         # result_list.append([sid, asin, soup_result["review_id"], soup_result["last_star"], soup_result["last_title"], soup_result["last_content"], md5(soup_result["last_title"] + soup_result["last_content"]), soup_result["author_id"], soup_result["author"], soup_result["review_date"], soup_result["is_vp"], 0, int(time.time()), int(time.time()), now])
 def main_handler(each_rev,asin,sid,response_list):
@@ -129,6 +136,7 @@ def main_handler(each_rev,asin,sid,response_list):
 def main(asin,sid):
     print(asin ,sid)
     response_list = []
+
     start_url = 'https://www.amazon.com/product-reviews/{}?reviewerType=all_reviews&sortBy=recent'.format(asin)
     while 1:
         try:
@@ -156,17 +164,48 @@ def main(asin,sid):
         pool.starmap(main_handler, tasks)
         pool.close()
         pool.join()
-
-
-
     for respon in response_list:
         deal_data(respon.text,asin,sid)
-    update_time(sid, asin)#更新表中数据
+    return response_list
+def get_soup(html):
+    soup_dict = {}
+    html_list = html.split("&&&")
+    for x in html_list[3:-3]:
+        ever_page_html = json.loads(x)[2:]
+        soup_result = parse(ever_page_html=ever_page_html[0])
+        soup_dict[soup_result["review_id"]]= (md5(soup_result["last_star"] + soup_result["last_title"] + soup_result["last_content"]),
+                                              soup_result["last_star"],soup_result["last_title"], soup_result["last_content"])
+
+    return soup_dict
+def renew(star, title, content, review_id, md5):
+    now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+    cursor.execute("update amz_review set last_star='{}',last_title='{}',last_content='{}',review_md5='{}',update_time='{}',crawl_date='{}' where review_id='{}'".format(star,pymysql.escape_string(title),pymysql.escape_string(content),md5,int(time.time()),now,review_id))
+    conn.commit()
+def classify(response_list,tasks):
+    new=ChainMap()
+    for respon in response_list:
+        soup_dict = get_soup(respon.text)
+        new = new.new_child(soup_dict)
+    base = ChainMap()
+    for review_id, md5 in tasks:
+        base = base.new_child({review_id: md5})
+    for b in base.keys():
+        if base.get(b) == new.get(b)[0]:
+            pass
+        else:
+            renew(new.get(b)[1],new.get(b)[2],new.get(b)[3],b,new.get(b)[0])
 
 if __name__ == '__main__':
-    update_table()#更新一下数据库
+    #update_table()#更新一下数据库
     asins_sids = get_asin_sid(delay=5)
     for asin,sid in asins_sids:
-        main(asin,sid)
+        response_list = main(asin,sid)
+        cursor.execute('select review_id,review_md5 from amz_review where asin = "{}"'.format(asin))
+        tasks = cursor.fetchall()
+        conn.commit()
+        if response_list != None:
+            classify(response_list,tasks)
+        else:
+            pass
     # # #main("B01D4FP6MY",1)
 
