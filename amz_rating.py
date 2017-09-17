@@ -8,21 +8,21 @@ from util import mysql_config,headers,get_proxy
 sema = asyncio.Semaphore(2)
 conn = pymysql.connect(**mysql_config)
 cursor = conn.cursor()
-def deal_bussines(html):
-    tree = etree.HTML(html)
-    result ={}
-    # 类目排名
-    result['category_rating'] = tree.Xpath('')
-    # 类目
-    result['category']=
-    # 评论
-    result['reviews'] =
-    # 好评率
-    result['good_reviews_percentage']=
-    # 星级
-    result['star_rating']=
-    # 销售排行详情
-    result['details']
+# def deal_bussines(html):
+#     tree = etree.HTML(html)
+#     result ={}
+#     # 类目排名
+#     result['category_rating'] = tree.Xpath('//span[@data-hook='rating-out-of-text']/text()')
+#     # 类目
+#     result['category']=tree.Xpath('//span[@data-hook='rating-out-of-text']/text()')
+#     # 评论
+#     result['reviews'] =tree.Xpath('//a[@id='acrCustomerReviewLink']/span')[0]
+#     # 好评率
+#     result['good_reviews_percentage']=tree.Xpath('//a[contains(@class,'5star hist')]/text()') tree.Xpath('//a[contains(@class,'4star hist')]/text()')
+#     # 星级
+#     result['star_rating']=tree.Xpath('//span[@data-hook='rating-out-of-text']/text()') #
+#     # 销售排行详情
+#     result['details'] =tree.Xpath('//span[@data-hook='rating-out-of-text']/text()')
 async def fetch(url,deal_bussines=None):
 
     try:
@@ -32,12 +32,13 @@ async def fetch(url,deal_bussines=None):
             async with aiohttp.ClientSession(connector=conn_tcp) as s:
                 async with s.request(url=url, method="GET", headers=headers, proxy=proxy, timeout=20) as r:
                     r = await r.text()
+                    print(r)
     except Exception as exc:
         print(exc)
-    else:
-        loop = asyncio.get_event_loop()
-        loop.run_in_executor(None,deal_bussines,r)
-        print("入库 ok")
+    # else:
+    #     loop = asyncio.get_event_loop()
+    #     loop.run_in_executor(None,deal_bussines,r)
+    #     print("入库 ok")
 if __name__ == '__main__':
     cursor.execute("select distinct asin from amz_review_task")
     tasks = cursor.fetchall()
