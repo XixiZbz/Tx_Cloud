@@ -14,7 +14,7 @@ cursor = conn.cursor()
 s = my_session()
 def update_table():
     now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-    cursor.execute("select DISTINCT sid,asin1 from mws_product_online ")
+    cursor.execute("select DISTINCT sid,asin1 from mws_product_online where status = 1")
     conn.commit()
     results = cursor.fetchall()
     for sid, asin in results:
@@ -150,7 +150,8 @@ def main(asin,sid):
         elif start_res.status_code != 200:
             continue
         try:
-            review_num = rev_num(start_res.text)
+            html = start_res.content.decode('utf-8', 'ignore')
+            review_num = rev_num(html)
             break
         except:
             pass
@@ -166,6 +167,7 @@ def main(asin,sid):
         pool.join()
     for respon in response_list:
         deal_data(respon.text,asin,sid)
+    update_time(sid, asin)
     return response_list
 def get_soup(html):
     soup_dict = {}
@@ -196,15 +198,18 @@ def classify(response_list,tasks):
             renew(new.get(b)[1],new.get(b)[2],new.get(b)[3],b,new.get(b)[0])
 
 if __name__ == '__main__':
-    #update_table()#更新一下数据库
-    asins_sids = get_asin_sid(delay=5)
+    update_table()#更新一下数据库
+    asins_sids = get_asin_sid(delay=15)
     for asin,sid in asins_sids:
         response_list = main(asin,sid)
         cursor.execute('select review_id,review_md5 from amz_review where asin = "{}"'.format(asin))
         tasks = cursor.fetchall()
         conn.commit()
         if response_list != None:
-            classify(response_list,tasks)
+            try:
+                classify(response_list,tasks)
+            except:
+                continue
         else:
             pass
     # # #main("B01D4FP6MY",1)

@@ -182,4 +182,5 @@ def main(asins_sids,proxy,headers):
 if __name__ == '__main__':
     #update_table()#更新一下数据库
     asins_sids = get_asin_sid(delay=0.0)
+
     main(asins_sids,proxy,headers)
