@@ -1,5 +1,7 @@
-
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import hashlib
+import random
 import time
 import requests
 import paramiko
@@ -84,13 +86,10 @@ def my_session():
     # 用 Python 的 Requests 模块。先订立 Session()，再更新 headers 和 proxies
     s = requests.Session()
     s.headers.update({"Host": "www.amazon.com"})
-    s.headers.update({
-                         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36"})
+    s.headers.update({"User-Agent":random.choice(USER_AGENTS)})
     s.headers.update({"Connection": "keep-alive"})
-    s.headers.update({
-                         "Referer": "https://www.amazon.com/AmazonBasics-Velvet-Hangers-50-Pack-Black/product-reviews/B01BH83OOM/ref=cm_cr_getr_d_paging_btm_1?ie=UTF8&reviewerType=all_reviews&pageNumber=1&sortBy=recent"})
-    s.headers.update(
-        {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"})
+    s.headers.update({"Referer": "https://www.amazon.com/AmazonBasics-Velvet-Hangers-50-Pack-Black/product-reviews/B01BH83OOM/ref=cm_cr_getr_d_paging_btm_1?ie=UTF8&reviewerType=all_reviews&pageNumber=1&sortBy=recent"})
+    s.headers.update({"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"})
     s.headers.update({"Accept-Encoding": ""})
     s.headers.update({"Origin": "https://www.amazon.com"})
     s.headers.update({"X-Requested-With": "XMLHttpRequest"})
@@ -158,8 +157,9 @@ def exec_commands(conn,cmd):
     conn.exec_command(cmd[0])
     time.sleep(0.5)
     conn.exec_command(cmd[1])
-    time.sleep(3)
+    time.sleep(10)
     a,b,c=conn.exec_command(cmd[2])
+    time.sleep(2)
     results=b.read()
     return results
 def change_ip():
@@ -169,5 +169,7 @@ def change_ip():
     ssh.close()
     return result
 if __name__ == '__main__':
-    pass
+    a = my_session()
+    b = a.get("http://www.j4.com.tw/james/remoip.php").text
+    print(b)
 
